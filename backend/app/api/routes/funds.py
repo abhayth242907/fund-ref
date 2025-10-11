@@ -271,3 +271,88 @@ async def get_fund(fund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
     fund['subfunds'] = [dict(sf) for sf in record['subfunds'] if sf]
     
     return fund
+
+@router.post("/")
+async def create_fund(fund_data: Dict[str, Any], db = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Creates a new fund with auto-generated fund_id and establishes relationships to management and legal entities.
+    Returns the newly created fund with all relationship data.
+    """
+    # Generate fund_id
+    query = """
+    MATCH (f:Fund)
+    RETURN f.fund_id as fund_id
+    ORDER BY f.fund_id DESC
+    LIMIT 1
+    """
+    result = db.run(query)
+    record = result.single()
+    
+    if record and record['fund_id']:
+        last_id = record['fund_id']
+        num = int(last_id[1:]) + 1
+        fund_id = f"F{num:06d}"
+    else:
+        fund_id = "F000001"
+    
+    # Verify management entity and legal entity exist
+    mgmt_id = fund_data.get('mgmt_id')
+    le_id = fund_data.get('le_id')
+    
+    if not mgmt_id or not le_id:
+        raise HTTPException(status_code=400, detail="Management entity ID and Legal entity ID are required")
+    
+    # Create fund node and relationships
+    create_query = """
+    MATCH (m:ManagementEntity {mgmt_id: $mgmt_id})
+    MATCH (le:LegalEntity {le_id: $le_id})
+    CREATE (f:Fund {
+        fund_id: $fund_id,
+        mgmt_id: $mgmt_id,
+        le_id: $le_id,
+        fund_code: $fund_code,
+        fund_name: $fund_name,
+        fund_type: $fund_type,
+        base_currency: $base_currency,
+        domicile: $domicile,
+        isin_master: $isin_master,
+        status: $status,
+        inception_date: $inception_date,
+        aum: $aum,
+        expense_ratio: $expense_ratio
+    })
+    CREATE (f)-[:MANAGED_BY]->(m)
+    CREATE (f)-[:HAS_LEGAL_ENTITY]->(le)
+    RETURN f, m, le
+    """
+    
+    params = {
+        'fund_id': fund_id,
+        'mgmt_id': mgmt_id,
+        'le_id': le_id,
+        'fund_code': fund_data.get('fund_code', ''),
+        'fund_name': fund_data.get('fund_name', ''),
+        'fund_type': fund_data.get('fund_type', 'UCITS'),
+        'base_currency': fund_data.get('base_currency', 'USD'),
+        'domicile': fund_data.get('domicile', ''),
+        'isin_master': fund_data.get('isin_master', ''),
+        'status': fund_data.get('status', 'ACTIVE'),
+        'inception_date': fund_data.get('inception_date'),
+        'aum': fund_data.get('aum'),
+        'expense_ratio': fund_data.get('expense_ratio'),
+    }
+    
+    try:
+        result = db.run(create_query, **params)
+        record = result.single()
+        
+        if not record:
+            raise HTTPException(status_code=400, detail="Failed to create fund. Check management and legal entity IDs.")
+        
+        fund = dict(record['f'])
+        fund['management_entity'] = dict(record['m']) if record['m'] else None
+        fund['legal_entity'] = dict(record['le']) if record['le'] else None
+        
+        return fund
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating fund: {str(e)}")

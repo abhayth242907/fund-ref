@@ -223,7 +223,11 @@ const Dashboard = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  label={({ name, percent, value }) => {
+                    // Truncate long names
+                    const displayName = name.length > 12 ? name.substring(0, 12) + '...' : name;
+                    return `${displayName} (${value})`;
+                  }}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -232,7 +236,7 @@ const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [value, name]} />
               </PieChart>
             </ResponsiveContainer>
           </Paper>
@@ -245,9 +249,19 @@ const Dashboard = () => {
               Fund Distribution
             </Typography>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stats.fundsByType}>
+              <BarChart 
+                data={stats.fundsByType}
+                margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
                 <YAxis />
                 <Tooltip />
                 <Legend />

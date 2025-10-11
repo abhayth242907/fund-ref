@@ -92,11 +92,20 @@ async def list_management_entities(
     skip: int = 0,
     limit: int = 10,
     db = Depends(get_db)
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Retrieves all management entities with basic pagination using skip and limit parameters.
     Returns list of management entities with their associated legal entity information.
     """
+    # Get total count
+    count_query = """
+    MATCH (m:ManagementEntity)
+    RETURN count(m) as total
+    """
+    count_result = db.run(count_query)
+    total = count_result.single()['total']
+    
+    # Get data
     query = """
     MATCH (m:ManagementEntity)
     OPTIONAL MATCH (m)-[:HAS_LEGAL_ENTITY]->(le:LegalEntity)
@@ -114,7 +123,10 @@ async def list_management_entities(
         mgmt['legal_entity'] = dict(record['le']) if record['le'] else None
         entities.append(mgmt)
     
-    return entities
+    return {
+        'management_entities': entities,
+        'total': total
+    }
 
 @router.get("/{mgmt_id}")
 async def get_management_entity(mgmt_id: str, db = Depends(get_db)) -> Dict[str, Any]:

@@ -77,11 +77,20 @@ async def list_legal_entities(
     skip: int = 0,
     limit: int = 10,
     db = Depends(get_db)
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Retrieves all legal entities with basic pagination using skip and limit parameters.
     Returns sorted list of legal entities ordered by le_id.
     """
+    # Get total count
+    count_query = """
+    MATCH (le:LegalEntity)
+    RETURN count(le) as total
+    """
+    count_result = db.run(count_query)
+    total = count_result.single()['total']
+    
+    # Get data
     query = """
     MATCH (le:LegalEntity)
     RETURN le
@@ -91,7 +100,12 @@ async def list_legal_entities(
     """
     
     result = db.run(query, skip=skip, limit=limit)
-    return [dict(record['le']) for record in result]
+    legal_entities = [dict(record['le']) for record in result]
+    
+    return {
+        'legal_entities': legal_entities,
+        'total': total
+    }
 
 @router.get("/{le_id}")
 async def get_legal_entity(le_id: str, db = Depends(get_db)) -> Dict[str, Any]:
