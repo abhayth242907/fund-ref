@@ -13,7 +13,10 @@ async def search_legal_entities(
     page_size: int = Query(10, ge=1, le=100),
     db = Depends(get_db)
 ) -> Dict[str, Any]:
-    """Search legal entities with filters"""
+    """
+    Searches legal entities using optional filters for le_id, lei, and entity_name with pagination.
+    Supports partial matching on all string fields and returns paginated results.
+    """
     
     where_clauses = []
     params = {}
@@ -74,8 +77,20 @@ async def list_legal_entities(
     skip: int = 0,
     limit: int = 10,
     db = Depends(get_db)
-) -> List[Dict[str, Any]]:
-    """List all legal entities"""
+) -> Dict[str, Any]:
+    """
+    Retrieves all legal entities with basic pagination using skip and limit parameters.
+    Returns sorted list of legal entities ordered by le_id.
+    """
+    # Get total count
+    count_query = """
+    MATCH (le:LegalEntity)
+    RETURN count(le) as total
+    """
+    count_result = db.run(count_query)
+    total = count_result.single()['total']
+    
+    # Get data
     query = """
     MATCH (le:LegalEntity)
     RETURN le
@@ -85,11 +100,19 @@ async def list_legal_entities(
     """
     
     result = db.run(query, skip=skip, limit=limit)
-    return [dict(record['le']) for record in result]
+    legal_entities = [dict(record['le']) for record in result]
+    
+    return {
+        'legal_entities': legal_entities,
+        'total': total
+    }
 
 @router.get("/{le_id}")
 async def get_legal_entity(le_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get legal entity by ID with associated funds"""
+    """
+    Retrieves a specific legal entity by ID with all associated fund relationships.
+    Returns legal entity with list of funds that have this legal entity or raises 404 if not found.
+    """
     query = """
     MATCH (le:LegalEntity {le_id: $le_id})
     OPTIONAL MATCH (f:Fund)-[:HAS_LEGAL_ENTITY]->(le)
