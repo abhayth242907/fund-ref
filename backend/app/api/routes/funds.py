@@ -1,34 +1,93 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Dict, Any, Optional
 from app.database.connection import get_db
 
 router = APIRouter(prefix="/funds", tags=["funds"])
 
-@router.get("/{fund_id}")
-async def get_fund(fund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
-    """Get fund by ID"""
-    query = """
-    MATCH (f:Fund {fund_id: $fund_id})
-    OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)
-    OPTIONAL MATCH (f)-[:HAS_LEGAL_ENTITY]->(le:LegalEntity)
-    OPTIONAL MATCH (f)-[:HAS_SHARE_CLASS]->(sc:ShareClass)
-    OPTIONAL MATCH (sf:SubFund)-[:PARENT_FUND]->(f)
-    RETURN f, m, le, collect(DISTINCT sc) as share_classes, collect(DISTINCT sf) as subfunds
+@router.get("/search")
+async def search_funds(
+    fund_code: Optional[str] = Query(None),
+    fund_id: Optional[str] = Query(None),
+    isin: Optional[str] = Query(None),
+    fund_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    mgmt_id: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db = Depends(get_db)
+) -> Dict[str, Any]:
+    """Search funds with filters"""
+    
+    where_clauses = []
+    params = {}
+    
+    if fund_code:
+        where_clauses.append("f.fund_code CONTAINS $fund_code")
+        params['fund_code'] = fund_code
+    
+    if fund_id:
+        where_clauses.append("f.fund_id = $fund_id")
+        params['fund_id'] = fund_id
+    
+    if isin:
+        where_clauses.append("f.isin_master CONTAINS $isin")
+        params['isin'] = isin
+    
+    if fund_type:
+        where_clauses.append("f.fund_type = $fund_type")
+        params['fund_type'] = fund_type
+    
+    if status:
+        where_clauses.append("f.status = $status")
+        params['status'] = status
+    
+    if mgmt_id:
+        where_clauses.append("f.mgmt_id = $mgmt_id")
+        params['mgmt_id'] = mgmt_id
+    
+    where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+    
+    # Calculate skip
+    skip = (page - 1) * page_size
+    params['skip'] = skip
+    params['limit'] = page_size
+    
+    # Get total count
+    count_query = f"""
+    MATCH (f:Fund)
+    WHERE {where_clause}
+    RETURN count(f) as total
     """
     
-    result = db.run(query, fund_id=fund_id)
-    record = result.single()
+    count_result = db.run(count_query, **params)
+    total = count_result.single()['total']
     
-    if not record:
-        raise HTTPException(status_code=404, detail="Fund not found")
+    # Get data
+    query = f"""
+    MATCH (f:Fund)
+    WHERE {where_clause}
+    OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)
+    RETURN f, m
+    ORDER BY f.fund_id
+    SKIP $skip
+    LIMIT $limit
+    """
     
-    fund = dict(record['f'])
-    fund['management_entity'] = dict(record['m']) if record['m'] else None
-    fund['legal_entity'] = dict(record['le']) if record['le'] else None
-    fund['share_classes'] = [dict(sc) for sc in record['share_classes'] if sc]
-    fund['subfunds'] = [dict(sf) for sf in record['subfunds'] if sf]
+    result = db.run(query, **params)
     
-    return fund
+    funds = []
+    for record in result:
+        fund = dict(record['f'])
+        fund['management_entity'] = dict(record['m']) if record['m'] else None
+        funds.append(fund)
+    
+    return {
+        'funds': funds,
+        'total': total,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': (total + page_size - 1) // page_size
+    }
 
 @router.get("/")
 async def list_funds(skip: int = 0, limit: int = 10, db = Depends(get_db)) -> List[Dict[str, Any]]:
@@ -115,67 +174,28 @@ async def get_fund_hierarchy_children(fund_id: str, depth: int = 1, db = Depends
         'depth': depth
     }
 
-@router.get("/search")
-async def search_funds(
-    fund_type: str = None,
-    status: str = None,
-    mgmt_id: str = None,
-    skip: int = 0,
-    limit: int = 10,
-    db = Depends(get_db)
-) -> Dict[str, Any]:
-    """Search funds with filters"""
-    
-    where_clauses = []
-    params = {'skip': skip, 'limit': limit}
-    
-    if fund_type:
-        where_clauses.append("f.fund_type = $fund_type")
-        params['fund_type'] = fund_type
-    
-    if status:
-        where_clauses.append("f.status = $status")
-        params['status'] = status
-    
-    if mgmt_id:
-        where_clauses.append("f.mgmt_id = $mgmt_id")
-        params['mgmt_id'] = mgmt_id
-    
-    where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
-    
-    # Get total count
-    count_query = f"""
-    MATCH (f:Fund)
-    WHERE {where_clause}
-    RETURN count(f) as total
-    """
-    
-    count_result = db.run(count_query, **params)
-    total = count_result.single()['total']
-    
-    # Get data
-    query = f"""
-    MATCH (f:Fund)
-    WHERE {where_clause}
+@router.get("/{fund_id}")
+async def get_fund(fund_id: str, db = Depends(get_db)) -> Dict[str, Any]:
+    """Get fund by ID"""
+    query = """
+    MATCH (f:Fund {fund_id: $fund_id})
     OPTIONAL MATCH (f)-[:MANAGED_BY]->(m:ManagementEntity)
-    RETURN f, m
-    ORDER BY f.fund_id
-    SKIP $skip
-    LIMIT $limit
+    OPTIONAL MATCH (f)-[:HAS_LEGAL_ENTITY]->(le:LegalEntity)
+    OPTIONAL MATCH (f)-[:HAS_SHARE_CLASS]->(sc:ShareClass)
+    OPTIONAL MATCH (sf:SubFund)-[:PARENT_FUND]->(f)
+    RETURN f, m, le, collect(DISTINCT sc) as share_classes, collect(DISTINCT sf) as subfunds
     """
     
-    result = db.run(query, **params)
+    result = db.run(query, fund_id=fund_id)
+    record = result.single()
     
-    funds = []
-    for record in result:
-        fund = dict(record['f'])
-        fund['management_entity'] = dict(record['m']) if record['m'] else None
-        funds.append(fund)
+    if not record:
+        raise HTTPException(status_code=404, detail="Fund not found")
     
-    return {
-        'data': funds,
-        'total': total,
-        'page': (skip // limit) + 1,
-        'page_size': limit,
-        'total_pages': (total + limit - 1) // limit
-    }
+    fund = dict(record['f'])
+    fund['management_entity'] = dict(record['m']) if record['m'] else None
+    fund['legal_entity'] = dict(record['le']) if record['le'] else None
+    fund['share_classes'] = [dict(sc) for sc in record['share_classes'] if sc]
+    fund['subfunds'] = [dict(sf) for sf in record['subfunds'] if sf]
+    
+    return fund

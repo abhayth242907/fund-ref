@@ -1,0 +1,82 @@
+THEME 6 - Fund Referential
+Problem Statement & Background
+Funds are an important instrument in the financial space with diverse clientele and even diverse categories. However, due to their complexity it’s often challenging to design a system for onboarding, storing and maintenance of funds along with its constituents and associations. Most banking systems are natively designed to efficiently manage a single asset class, but considering funds can span multiple asset classes it creates additional complexities.
+
+In BNP Paribas, we have multiple systems with different representations of funds. Core referential systems maintain fund information only at the top level with cross-associations with other funds. KYC systems maintain a fund hierarchy along with related persons who are associated with the fund. For specific functions, the specific representations are useful, however challenges arise when migrating data from one system to another due to the different nature of data models per system.
+
+Modelling funds also has impact on the retrieval of information through various systems. Inefficient data models result in high latency and inconsistent data output which can have significant impact on business operations.
+
+Objective 
+The objective is to homogenize the data from multiple systems and build a storage solution to onboard and maintain referential data about funds, their compositions, their associations and capability to attach additional functional models to capture peripheral data. The solution should be future-ready with ability to extend by attaching additional business contextual data models such as KYC, Risk, Tax, etc. to the existing fund model.
+
+The solution should also be able to deliver the stored data in low-latency, high-throughput APIs along with a UI for visualization and data traversal.
+
+Expected Outcomes 
+
+The target solution should be able to store all types of funds including the associations and compositions i.e. management entities, sub-funds
+A visualization tool to depict the fund model and its associations and compositions along with the capability to traverse to a specific related entity
+API to retrieve data for funds from the selected storage solution for following possible scenarios:
+Point lookup of a fund based on identifiers
+Fund hierarchy retrieval n+ & n-
+Horizontal lookup of linked funds i.e. same management entity
+Solution Requirements
+
+Accuracy: The target model and storage solution should accurately store all the provided datasets. APIs should be able to deliver the required data with consistency.
+Extensibility: Solution should be extensible to attach additional data models to the fund model
+Scalability: Explain how the choice of storage solution will ensure scalability of the platform in case of the fund volumes increasing by 100x
+Performance: Detail how the solution will be performant for low latency retrieval of fund information
+Documentation: Specify the High-level and Low-level design specifications, including system architecture, algorithms used, and deployment instructions. 
+Detailed breakdown of Tasks
+
+Basic Tasks
+
+Data preparation and preprocessing: Data normalization and standardization, etc.
+Database model and storage: Designing and implementing the schema using either a relational database or a graph-based database
+Visualization Framework (Basic): Developing a user interface to display fund hierarchy with essential functionalities such as zoom, pan and node edge highlighting visualization should also present basic attributes, eg. ticker, fund category, fund rating, etc.
+Testing and Validation: Conducting initial validation of the system to ensure correct network generation visualization and database integration
+Intermediate Tasks
+
+Enhanced Visualization Features: Adding filtering options (eg. by fund composition, entity type), supporting different layout algorithms, and allowing users to inspect traverse to associated entities interactively
+API for data retrieval: A low-latency API to be able to deliver paginated output of funds based on some of the following scenarios
+Find a fund with code FCF000032
+Retrieve the n+1 children hierarchy of a fund with id F000001
+Retrieve the n-1 parent hierarchy of a fund with ticker SF000017
+Find all funds which have the same management entity MG000012
+Advanced Tasks
+
+Onboarding process for new funds: Design a process along with an API/UI to be able to onboard new funds in the target model. It should the user to specify a fund along with its constituents during onboarding.
+Natural language search across funds, constituents, associations, ESG data: An enhancement to retrieval via API for funds, entities and associations. User should be able to provide a natural language input such as ‘Give me all funds with exposure to manufacturing equities with holding above 30%’
+Ability to perform corrections: Once the data is stored in the target data model, there will be scenarios where there may be a need to perform corrections to specific entities or funds. The correction mechanism should ensure proper propagation of all the corrections to associated entities without losing data consistency
+Generic Tasks – Nice To have
+
+Error Handling: Develop and implement robust error handling for application-level and edge cases 
+Code Readability: Enhance code organization, syntax, and commenting to improve readability and maintainability 
+Deployment: Develop and implement a deployment strategy and process 
+Integration and Testing: Establish continuous or regular integration and automated testing protocols 
+Logging: Design and implement a comprehensive logging mechanism for monitoring and debugging 
+Performance: Identify and establish performance boundaries, optimize code for efficiency, and ensure reliability and scalability
+Input 
+
+The input datasets consisting of management entities, funds, sub-funds, legal entities and share classes should be used to understand the characteristics of the data, come up with a data model to store the datasets and decide on a choice of storage solution e.g. RDBMS, NoSQL, time-series, graph
+Additional inputs: user-defined filters, queries, or visualization settings (e.g., fund type, date range, entity type) 
+Relationships:
+Dataset
+
+UC6_input_dataset.zip consists of 5 files:
+
+csv: Management entities
+csv: Master fund entities
+csv: Sub-fund entities
+csv: Legal entity master for all entities covered in management, master fund and sub-fund
+csv: Share classes for funds and sub-funds
+DATASET HERE
+
+PPT HERE
+
+Reference
+
+Management entity: It (often called an investment manager, fund manager, asset‑manager or investment adviser) is the organization that makes the day‑to‑day investment decisions for an investment vehicle such as a mutual fund, ETF, hedge fund, pension fund, private‑equity fund, or a fund‑of‑funds (FoF).
+Master fund: The legal wrapper that holds a portfolio (e.g., a UCITS SICAV, a Delaware LP, an Irish AIF, an offshore feeder). Determines regulatory regime, tax treatment, reporting jurisdiction, and KYC/AML checks.
+Share Class: Variant of a fund with its own ISIN, currency, distribution policy, fee schedule.         Allows the same portfolio to be sold to different client segments.
+Sub‑Fund (a.k.a. Underlying Fund or Feeder): A second‑level legal entity that either (a) feeds a master fund (feeder‑master structure) or (b) is a nested fund inside a Fund‑of‑Funds (FoF) hierarchy. Allows segregation by currency, jurisdiction, or strategy while still using the same underlying portfolio.
+Legal Entity: A legal entity is an organization that the law recognizes as a separate person, capable of owning assets, entering contracts, incurring liabilities, and being subject to taxes and regulations, and is identified globally by a unique LEI and locally by a registration number and jurisdiction. explain in very easy language

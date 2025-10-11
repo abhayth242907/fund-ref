@@ -3,8 +3,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import Header from './components/Header';
-import FundVisualization from './components/FundVisualization';
+import Dashboard from './components/Dashboard';
 import FundSearch from './components/FundSearch';
+import FundDetails from './components/FundDetails';
+import FundVisualization from './components/FundVisualization';
+import FundOnboarding from './components/FundOnboarding';
+import ManagementEntityExplorer from './components/ManagementEntityExplorer';
+import SubFundDetails from './components/SubFundDetails';
 
 const theme = createTheme({
   palette: {
@@ -25,8 +30,14 @@ function App() {
       <Router>
         <Header />
         <Routes>
-          <Route path="/" element={<FundSearch />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/search" element={<FundSearch />} />
+          <Route path="/fund/:fundId" element={<FundDetails />} />
+          <Route path="/subfund/:subfundId" element={<SubFundDetails />} />
           <Route path="/visualization/:fundId" element={<FundVisualization />} />
+          <Route path="/onboarding" element={<FundOnboarding />} />
+          <Route path="/management" element={<ManagementEntityExplorer />} />
+          <Route path="/management/:mgmtId" element={<ManagementEntityExplorer />} />
         </Routes>
       </Router>
     </ThemeProvider>
