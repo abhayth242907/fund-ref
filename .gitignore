@@ -7,16 +7,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
+# # Distribution / packaging
+# dist/
+# build/
+# *.egg-info/
 
-node_modules
+# node_modules
 
-.DS_Store
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# .DS_Store
+# .env
+# .env.local
+# .env.development.local
+# .env.test.local
+# .env.production.local

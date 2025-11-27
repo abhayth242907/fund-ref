@@ -1,35 +1,38 @@
-version: '3'
 services:
   neo4j:
-    image: neo4j:5.12.0
+    container_name: neo4j_db
+    image: neo4j:5.12-community
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7687:7687"
+      - "7474:7474"
     environment:
-      - NEO4J_AUTH=neo4j/hackathon2023
-      - NEO4J_apoc_export_file_enabled=true
-      - NEO4J_apoc_import_file_enabled=true
-      - NEO4J_apoc_import_file_use__neo4j__config=true
+      NEO4J_AUTH: neo4j/hackathon2023
+      NEO4J_dbms_default__database: neo4j
     volumes:
-      - ./neo4j/data:/data
-      - ./neo4j/logs:/logs
-      - ./neo4j/import:/import
-      - ./neo4j/plugins:/plugins
+      - neo4j_data:/data
+      - ./backend/UC6_input_datasetd6889de:/var/lib/neo4j/import
 
   backend:
-    build: ./backend
+    container_name: bnp_backend
+    image: abhay41/fund_referential-backend:latest
     ports:
       - "8000:8000"
     environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=hackathon2023
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: hackathon2023
     depends_on:
       - neo4j
 
   frontend:
-    build: ./frontend
+    container_name: bnp_frontend
+    image: abhay41/fund_referential-frontend:latest
     ports:
       - "3000:3000"
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8000
     depends_on:
       - backend
+
+volumes:
+  neo4j_data:
