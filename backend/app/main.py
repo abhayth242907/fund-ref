@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from app.config import get_settings
 from app.database.connection import initialize_connection
@@ -16,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events"""
-    # Startup
     logger.info("Starting up...")
     neo4j_conn = initialize_connection()
     logger.info("Neo4j connection initialized")
     yield
-    # Shutdown
     logger.info("Shutting down...")
     if neo4j_conn:
         neo4j_conn.close()
@@ -37,14 +35,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration
+
+# --------------------------
+# CORS CONFIGURATION (FIXED)
+# --------------------------
+
+frontend_url = os.getenv("FRONTEND_URL")
+
+allowed_origins = [
+    frontend_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include routers
 app.include_router(funds.router)
@@ -57,7 +68,6 @@ app.include_router(statistics.router)
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
         "message": "Fund Referential API",
         "version": settings.api_version,
@@ -68,5 +78,4 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     return {"status": "healthy"}
